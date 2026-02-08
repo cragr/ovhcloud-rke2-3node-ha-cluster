@@ -1,0 +1,15 @@
+token: {{ rke2_token }}
+node-name: {{ inventory_hostname.split('.')[0] }}
+{% if inventory_hostname not in groups['rke2_first_server'] %}
+server: https://{{ rke2_server_ip }}:9345
+{% endif %}
+tls-san:
+{% for san in rke2_tls_san %}
+  - {{ san }}
+{% endfor %}
+cni: {{ rke2_cni }}
+cluster-cidr: {{ rke2_cluster_cidr }}
+service-cidr: {{ rke2_service_cidr }}
+write-kubeconfig-mode: "0644"
+kube-proxy-arg:
+  - proxy-mode=nftables

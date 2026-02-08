@@ -1,0 +1,6 @@
+---
+rke2_version: "v1.34.3+rke2r1"
+rke2_install_script_url: https://get.rke2.io
+rke2_config_dir: /etc/rancher/rke2
+rke2_data_dir: /var/lib/rancher/rke2
+rke2_kubeconfig: /etc/rancher/rke2/rke2.yaml

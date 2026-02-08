@@ -1,0 +1,23 @@
+---
+- name: Enable and start RKE2 server
+  ansible.builtin.systemd:
+    name: rke2-server
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Wait for RKE2 server to be ready
+  ansible.builtin.wait_for:
+    path: "{{ rke2_kubeconfig }}"
+    state: present
+    timeout: 300
+
+- name: Wait for node to be ready
+  ansible.builtin.shell: |
+    export KUBECONFIG={{ rke2_kubeconfig }}
+    {{ rke2_data_dir }}/bin/kubectl get nodes --no-headers | grep -w Ready
+  register: node_ready
+  until: node_ready.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false

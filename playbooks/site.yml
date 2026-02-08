@@ -1,0 +1,13 @@
+---
+# Main orchestrator playbook - run all playbooks in sequence
+# Usage: ansible-playbook playbooks/site.yml --ask-vault-pass
+# Note: Run 00-bootstrap.yml separately first with ubuntu user
+
+- name: Harden nodes
+  ansible.builtin.import_playbook: 01-harden.yml
+
+- name: Install RKE2 servers (HA cluster)
+  ansible.builtin.import_playbook: 02-rke2-server.yml
+
+- name: Configure persistent storage
+  ansible.builtin.import_playbook: 03-storage.yml

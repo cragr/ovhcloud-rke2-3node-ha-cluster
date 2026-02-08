@@ -1,0 +1,16 @@
+---
+- name: Harden all cluster nodes
+  hosts: rke2_cluster
+  become: yes
+  roles:
+    - hardening
+
+  post_tasks:
+    - name: Display UFW status
+      ansible.builtin.command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+
+    - name: Show UFW status
+      ansible.builtin.debug:
+        var: ufw_status.stdout_lines

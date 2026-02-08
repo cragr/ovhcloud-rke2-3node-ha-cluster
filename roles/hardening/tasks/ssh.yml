@@ -1,0 +1,32 @@
+---
+- name: Configure SSH - disable root login
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: "PermitRootLogin {{ sshd_permit_root_login }}"
+    validate: 'sshd -t -f %s'
+  notify: Restart sshd
+
+- name: Configure SSH - disable password authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: "PasswordAuthentication {{ sshd_password_authentication }}"
+    validate: 'sshd -t -f %s'
+  notify: Restart sshd
+
+- name: Configure SSH - enable pubkey authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: "PubkeyAuthentication {{ sshd_pubkey_authentication }}"
+    validate: 'sshd -t -f %s'
+  notify: Restart sshd
+
+- name: Configure SSH - allow only specific users
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AllowUsers'
+    line: "AllowUsers {{ sshd_allowed_users | join(' ') }}"
+    validate: 'sshd -t -f %s'
+  notify: Restart sshd

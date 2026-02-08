@@ -1,0 +1,28 @@
+---
+- name: Include user cleanup tasks
+  ansible.builtin.include_tasks: users.yml
+  tags: [users]
+
+- name: Include package installation tasks
+  ansible.builtin.include_tasks: packages.yml
+  tags: [packages]
+
+- name: Include SSH hardening tasks
+  ansible.builtin.include_tasks: ssh.yml
+  tags: [ssh]
+
+- name: Include fail2ban tasks
+  ansible.builtin.include_tasks: fail2ban.yml
+  tags: [fail2ban]
+
+- name: Include UFW firewall tasks
+  ansible.builtin.include_tasks: ufw.yml
+  tags: [ufw]
+
+- name: Include sysctl and kernel module tasks
+  ansible.builtin.include_tasks: sysctl.yml
+  tags: [sysctl]
+
+- name: Include unattended-upgrades tasks
+  ansible.builtin.include_tasks: upgrades.yml
+  tags: [upgrades]

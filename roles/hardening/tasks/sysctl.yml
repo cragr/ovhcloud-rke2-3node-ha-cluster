@@ -1,0 +1,26 @@
+---
+- name: Load required kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ kernel_modules }}"
+
+- name: Persist kernel modules across reboots
+  ansible.builtin.copy:
+    content: |
+      {% for module in kernel_modules %}
+      {{ module }}
+      {% endfor %}
+    dest: /etc/modules-load.d/kubernetes.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure sysctl parameters
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes.conf
+    reload: yes
+    state: present
+  loop: "{{ sysctl_settings | dict2items }}"

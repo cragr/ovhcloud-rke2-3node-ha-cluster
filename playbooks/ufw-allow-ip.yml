@@ -1,0 +1,45 @@
+---
+# Helper playbook to add/remove IP from Kubernetes API allowlist
+# Usage:
+#   Add:    ansible-playbook playbooks/ufw-allow-ip.yml -e "ip=YOUR_IP action=allow"
+#   Remove: ansible-playbook playbooks/ufw-allow-ip.yml -e "ip=YOUR_IP action=delete"
+
+- name: Manage UFW Kubernetes API access
+  hosts: rke2_cluster
+  become: yes
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - ip is defined
+          - action is defined
+          - action in ['allow', 'delete']
+        fail_msg: "Usage: -e 'ip=YOUR_IP action=allow|delete'"
+
+    - name: Allow IP {{ ip }} to Kubernetes API
+      community.general.ufw:
+        rule: allow
+        port: "6443"
+        proto: tcp
+        from_ip: "{{ ip }}"
+        comment: "Kubernetes API access for {{ ip }}"
+      when: action == 'allow'
+
+    - name: Delete IP {{ ip }} from Kubernetes API
+      community.general.ufw:
+        delete: yes
+        rule: allow
+        port: "6443"
+        proto: tcp
+        from_ip: "{{ ip }}"
+      when: action == 'delete'
+
+    - name: Show current UFW rules for port 6443
+      ansible.builtin.shell: ufw status | grep 6443 || echo "No 6443 rules found"
+      register: ufw_rules
+      changed_when: false
+
+    - name: Display current rules
+      ansible.builtin.debug:
+        var: ufw_rules.stdout_lines

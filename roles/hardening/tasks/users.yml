@@ -1,0 +1,17 @@
+---
+- name: Kill all processes owned by bootstrap user
+  ansible.builtin.command: pkill -u {{ bootstrap_user }}
+  register: pkill_result
+  failed_when: pkill_result.rc not in [0, 1]
+  changed_when: pkill_result.rc == 0
+
+- name: Delete bootstrap user and home directory
+  ansible.builtin.user:
+    name: "{{ bootstrap_user }}"
+    state: absent
+    remove: yes
+
+- name: Remove bootstrap user from sudoers if exists
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ bootstrap_user }}"
+    state: absent

@@ -1,0 +1,94 @@
+---
+- name: Check if UFW is already configured
+  ansible.builtin.command: ufw status
+  register: ufw_status
+  changed_when: false
+
+- name: Reset UFW to default state (only if inactive)
+  community.general.ufw:
+    state: reset
+  when: "'inactive' in ufw_status.stdout"
+
+- name: Set UFW default incoming policy
+  community.general.ufw:
+    direction: incoming
+    policy: "{{ ufw_default_incoming }}"
+
+- name: Set UFW default outgoing policy
+  community.general.ufw:
+    direction: outgoing
+    policy: "{{ ufw_default_outgoing }}"
+
+- name: Allow SSH from anywhere
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    comment: "SSH access"
+
+- name: Allow inter-node RKE2 supervisor (9345)
+  community.general.ufw:
+    rule: allow
+    port: "9345"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "RKE2 supervisor from {{ item }}"
+  loop: "{{ cluster_node_ips }}"
+
+- name: Allow inter-node Kubernetes API (6443)
+  community.general.ufw:
+    rule: allow
+    port: "6443"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Kubernetes API from {{ item }}"
+  loop: "{{ cluster_node_ips }}"
+
+- name: Allow inter-node kubelet (10250)
+  community.general.ufw:
+    rule: allow
+    port: "10250"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Kubelet from {{ item }}"
+  loop: "{{ cluster_node_ips }}"
+
+- name: Allow inter-node Flannel VXLAN (8472)
+  community.general.ufw:
+    rule: allow
+    port: "8472"
+    proto: udp
+    from_ip: "{{ item }}"
+    comment: "Flannel VXLAN from {{ item }}"
+  loop: "{{ cluster_node_ips }}"
+
+- name: Allow inter-node etcd (2379-2380) on all servers
+  community.general.ufw:
+    rule: allow
+    port: "2379:2380"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "etcd from {{ item }}"
+  loop: "{{ cluster_node_ips }}"
+
+- name: Allow HTTP from Cloudflare
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "HTTP from Cloudflare"
+  loop: "{{ cloudflare_ipv4_ranges }}"
+
+- name: Allow HTTPS from Cloudflare
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "HTTPS from Cloudflare"
+  loop: "{{ cloudflare_ipv4_ranges }}"
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled

@@ -1,0 +1,12 @@
+---
+- name: Include RKE2 installation tasks
+  ansible.builtin.include_tasks: install.yml
+  tags: [install]
+
+- name: Include RKE2 configuration tasks
+  ansible.builtin.include_tasks: config.yml
+  tags: [config]
+
+- name: Include RKE2 service tasks
+  ansible.builtin.include_tasks: service.yml
+  tags: [service]

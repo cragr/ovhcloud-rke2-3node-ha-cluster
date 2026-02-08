@@ -1,0 +1,15 @@
+---
+- name: Bootstrap nodes with ansible user
+  hosts: rke2_cluster
+  become: yes
+  vars:
+    ansible_user: "{{ bootstrap_user }}"
+  roles:
+    - bootstrap
+
+  post_tasks:
+    - name: Verify ansible user can connect
+      ansible.builtin.ping:
+      become: no
+      vars:
+        ansible_user: ansible

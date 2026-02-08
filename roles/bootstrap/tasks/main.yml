@@ -1,0 +1,42 @@
+---
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Update /etc/hosts with hostname
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1 {{ inventory_hostname }} {{ inventory_hostname.split('.')[0] }}"
+    state: present
+
+- name: Ensure ansible user exists
+  ansible.builtin.user:
+    name: ansible
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    create_home: yes
+    state: present
+
+- name: Set authorized key for ansible user
+  ansible.posix.authorized_key:
+    user: ansible
+    key: "{{ ansible_user_public_key }}"
+    state: present
+    exclusive: yes
+
+- name: Allow ansible user passwordless sudo
+  ansible.builtin.copy:
+    content: "ansible ALL=(ALL) NOPASSWD:ALL"
+    dest: /etc/sudoers.d/ansible
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Ensure SSH directory exists for ansible user
+  ansible.builtin.file:
+    path: /home/ansible/.ssh
+    state: directory
+    owner: ansible
+    group: ansible
+    mode: '0700'

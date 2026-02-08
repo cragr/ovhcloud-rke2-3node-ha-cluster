@@ -1,0 +1,15 @@
+# Ansible
+*.retry
+kubeconfig
+kubeconfig.yml
+
+# Secrets (should be vault encrypted, but extra safety)
+vars/secrets.yml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# OS
+.DS_Store

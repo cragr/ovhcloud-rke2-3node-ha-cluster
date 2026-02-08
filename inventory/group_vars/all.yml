@@ -1,0 +1,48 @@
+---
+# Connection settings
+ansible_user: ansible
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+
+# Bootstrap settings (used by 00-bootstrap.yml)
+bootstrap_user: ubuntu
+ansible_user_public_key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+
+# Node IPs for firewall rules
+cluster_node_ips:
+  - <NODE1_IP>
+  - <NODE2_IP>
+  - <NODE3_IP>
+
+# RKE2 settings
+rke2_version: "v1.34.3+rke2r1"
+rke2_install_script_url: https://get.rke2.io
+rke2_config_dir: /etc/rancher/rke2
+rke2_data_dir: /var/lib/rancher/rke2
+rke2_kubeconfig: /etc/rancher/rke2/rke2.yaml
+rke2_token: "{{ vault_rke2_token }}"
+rke2_server_ip: <NODE1_IP>
+rke2_api_endpoint: <API_ENDPOINT>
+rke2_cluster_cidr: "10.42.0.0/16"
+rke2_service_cidr: "10.43.0.0/16"
+rke2_cni: canal
+
+# TLS SANs for API server
+rke2_tls_san:
+  - <NODE1_IP>
+  - <NODE2_IP>
+  - <NODE3_IP>
+  - <NODE1_HOSTNAME>
+  - <NODE2_HOSTNAME>
+  - <NODE3_HOSTNAME>
+  - <API_ENDPOINT>
+
+# Storage settings
+lvm_vg_name: vg_data
+lvm_device: /dev/sdb
+
+# OpenEBS LVM provisioner
+openebs_helm_version: "4.4.0"
+openebs_namespace: openebs
+openebs_sc_name: openebs-lvm
+kubeconfig_path: "{{ playbook_dir }}/../kubeconfig"

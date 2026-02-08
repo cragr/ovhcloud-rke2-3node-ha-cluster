@@ -1,0 +1,114 @@
+---
+# Sets up persistent storage: LVM volume group on each node's secondary disk,
+# then installs the OpenEBS LVM LocalPV provisioner to dynamically allocate volumes.
+#
+# If a node has no secondary disk, LVM setup is skipped for that node.
+# The OpenEBS provisioner is still installed so the StorageClass is available
+# cluster-wide — volumes will only be provisioned on nodes that have the VG.
+#
+# Prerequisites: RKE2 cluster must be running (run 02-rke2-server.yml first)
+# Usage: ansible-playbook playbooks/03-storage.yml --ask-vault-pass
+
+- name: Prepare LVM volume group on all nodes
+  hosts: rke2_cluster
+  become: yes
+  tasks:
+    - name: Check if secondary disk exists
+      ansible.builtin.stat:
+        path: "{{ lvm_device }}"
+      register: disk_check
+
+    - name: Skip LVM setup if secondary disk is absent
+      ansible.builtin.debug:
+        msg: "No secondary disk found at {{ lvm_device }} — skipping LVM setup on {{ inventory_hostname }}"
+      when: not disk_check.stat.exists
+
+    - name: Install lvm2
+      ansible.builtin.apt:
+        name: lvm2
+        state: present
+      when: disk_check.stat.exists
+
+    - name: Check if VG already exists
+      ansible.builtin.command: vgs {{ lvm_vg_name }}
+      register: vg_check
+      changed_when: false
+      failed_when: false
+      when: disk_check.stat.exists
+
+    - name: Create physical volume and volume group on secondary disk
+      community.general.lvg:
+        vg: "{{ lvm_vg_name }}"
+        pvs: "{{ lvm_device }}"
+        state: present
+      when: disk_check.stat.exists and vg_check.rc != 0
+
+    - name: Verify volume group
+      ansible.builtin.command: vgs {{ lvm_vg_name }} -o vg_name,vg_size,vg_free --noheadings
+      register: vg_info
+      changed_when: false
+      when: disk_check.stat.exists
+
+    - name: Display VG info
+      ansible.builtin.debug:
+        msg: "Volume group {{ lvm_vg_name }}: {{ vg_info.stdout | trim }}"
+      when: vg_info.stdout is defined
+
+- name: Install OpenEBS LVM LocalPV provisioner
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  become: no
+  tasks:
+    - name: Add OpenEBS Helm repository
+      kubernetes.core.helm_repository:
+        name: openebs
+        repo_url: https://openebs.github.io/openebs
+
+    - name: Install OpenEBS LVM LocalPV
+      kubernetes.core.helm:
+        name: openebs-lvm-localpv
+        chart_ref: openebs/lvm-localpv
+        chart_version: "{{ openebs_helm_version }}"
+        release_namespace: "{{ openebs_namespace }}"
+        create_namespace: true
+        kubeconfig: "{{ kubeconfig_path }}"
+        values:
+          lvmNode:
+            driverRegistrar:
+              image:
+                pullPolicy: IfNotPresent
+        wait: true
+        wait_timeout: 300s
+
+    - name: Create LVM StorageClass (default)
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: "{{ openebs_sc_name }}"
+            annotations:
+              storageclass.kubernetes.io/is-default-class: "true"
+          provisioner: local.csi.openebs.io
+          parameters:
+            storage: lvm
+            vgpattern: "{{ lvm_vg_name }}"
+            fsType: xfs
+          volumeBindingMode: WaitForFirstConsumer
+          reclaimPolicy: Delete
+          allowVolumeExpansion: true
+
+    - name: Verify StorageClass exists
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: StorageClass
+        name: "{{ openebs_sc_name }}"
+      register: sc_info
+
+    - name: Display StorageClass status
+      ansible.builtin.debug:
+        msg: "StorageClass {{ openebs_sc_name }} is available (default)"
+      when: sc_info.resources | length > 0

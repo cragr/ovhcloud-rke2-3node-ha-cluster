@@ -1,0 +1,77 @@
+---
+- name: Install and configure first RKE2 server
+  hosts: rke2_first_server
+  become: yes
+  vars_files:
+    - ../vars/secrets.yml
+  roles:
+    - rke2-server
+
+  post_tasks:
+    - name: Wait for first server to be ready
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+        /var/lib/rancher/rke2/bin/kubectl get nodes
+      register: node_check
+      until: node_check.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+- name: Install and configure additional RKE2 servers
+  hosts: rke2_additional_servers
+  become: yes
+  serial: 1
+  vars_files:
+    - ../vars/secrets.yml
+  roles:
+    - rke2-server
+
+  post_tasks:
+    - name: Wait for node to join cluster
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+        /var/lib/rancher/rke2/bin/kubectl get nodes | grep -q "{{ inventory_hostname.split('.')[0] }}"
+      delegate_to: "{{ groups['rke2_first_server'][0] }}"
+      register: node_joined
+      until: node_joined.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+- name: Fetch kubeconfig and verify cluster
+  hosts: rke2_first_server
+  become: yes
+  tasks:
+    - name: Fetch kubeconfig to local machine
+      ansible.builtin.fetch:
+        src: /etc/rancher/rke2/rke2.yaml
+        dest: ./kubeconfig
+        flat: yes
+
+    - name: Update kubeconfig server URL
+      ansible.builtin.replace:
+        path: ./kubeconfig
+        regexp: '127\.0\.0\.1'
+        replace: "{{ rke2_api_endpoint }}"
+      delegate_to: localhost
+      become: no
+
+    - name: Display cluster status
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+        /var/lib/rancher/rke2/bin/kubectl get nodes -o wide
+      register: cluster_status
+      changed_when: false
+
+    - name: Show cluster status
+      ansible.builtin.debug:
+        var: cluster_status.stdout_lines
+
+    - name: Verify all servers are Ready
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+        /var/lib/rancher/rke2/bin/kubectl get nodes --no-headers | grep -c Ready
+      register: ready_count
+      changed_when: false
+      failed_when: ready_count.stdout | int != 3
