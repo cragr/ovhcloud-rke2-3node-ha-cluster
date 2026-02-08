@@ -1,4 +1,4 @@
-# OVHcloud RKE2 Cluster
+# 3-Node HA RKE2 Cluster on OVHcloud
 
 Ansible playbooks for deploying a 3-node HA RKE2 Kubernetes cluster on OVHcloud VPS instances.
 
